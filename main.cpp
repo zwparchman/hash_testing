@@ -61,6 +61,35 @@ void count_free(void *ptr){
 
 using namespace std;
 
+struct value_struct{
+    int value;
+    char waste[80];
+    int operator=(int x){
+        value=x;
+        return value;
+    }
+
+    operator decltype(value)(){
+        return value;
+    }
+
+    template <typename T>
+    value_struct(T v){
+        value=v;
+    }
+
+    value_struct(){
+        //uninitilized
+    }
+};
+
+constexpr decltype(value_struct::value)
+    value_min = std::numeric_limits<decltype(value_struct::value)>::min();
+
+constexpr decltype(value_struct::value)
+    value_max = std::numeric_limits<decltype(value_struct::value)>::max();
+
+
 typedef int KeyType;
 typedef int ValueType;
 
@@ -98,9 +127,10 @@ struct Time_Hash{
         KeyType high_key = std::numeric_limits<KeyType>::max();
         std::uniform_int_distribution<KeyType> key_distro(low_key, high_key);
 
-        ValueType low_value = std::numeric_limits<ValueType>::min();
-        ValueType high_value = std::numeric_limits<ValueType>::max();
-        std::uniform_int_distribution<ValueType> value_distro(low_value, high_value);
+        int64_t low_value = value_min;
+        int64_t high_value = value_max;
+        std::uniform_int_distribution<decltype(value_struct::value)>
+            value_distro(low_value, high_value);
 
         std::unordered_map<KeyType, ValueType> umap;
         umap.reserve(count);
