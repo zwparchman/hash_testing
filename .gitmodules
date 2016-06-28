@@ -1,0 +1,9 @@
+[submodule "uthash"]
+	path = uthash
+	url = git@github.com:troydhanson/uthash.git
+[submodule "sglib"]
+	path = sglib
+	url = git@github.com:stefanct/sglib.git
+[submodule "klib"]
+	path = klib
+	url = https://github.com/attractivechaos/klib.git
