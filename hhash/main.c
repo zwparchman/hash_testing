@@ -34,12 +34,14 @@ int main(int argc, char * argv[]){
         keys[count] = count;
     }
     /* mix up the keys */
+    /*
     for( size_t count = 0; count <keys_size ; count ++){
         size_t where = rand()%keys_size;
         keytype temp = keys[where];
         keys[where] = keys[0];
         keys[0]=temp;
     }
+  */
     for( size_t count=0; count<keys_size; count++){
         values[count]=count*2;
 

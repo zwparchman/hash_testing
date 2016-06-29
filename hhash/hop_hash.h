@@ -167,8 +167,6 @@ size_t make_room(hash_data_t*  dat, size_t where, int retries){
 }
 
 int rehash(hash_data_t *dat){
-    //double the size;
-
     const size_t new_slots = dat->slot_count *2;
 
     size_t new_neighborhood = 1;
@@ -245,7 +243,7 @@ h_Value_Type * add_location(hash_data_t *dat, h_Key_Type *key){
             }
         }
 
-        size_t new_slot = make_room(dat,where, 4);
+        size_t new_slot = make_room(dat,where, 2);
         if( dat->slot_count != new_slot){
             dat->hashes[new_slot] = hash;
             dat->keys[new_slot] = *key;

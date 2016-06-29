@@ -2,10 +2,9 @@ OFLAGS = -O3
 CC=g++
 STD=-std=c++14
 CFLAGS= -g -c -W -Wall -Wextra $(STD) -Wno-missing-field-initializers -Wshadow \
-				-I/home/zack/mysrc/zacklib \
 				-I../klib\
 				$(OFLAGS)
-LFLAGS= -g $(STD) $(OFLAGS) -L/home/zack/lib/ -lzacklib
+LFLAGS= -g $(STD) $(OFLAGS)
 
 .PHONY:clean 
 
@@ -23,18 +22,18 @@ dbg: program
 	gdb program
 
 run: program
-	./program
+	./program $(test_size)
 
 time: program
-	time ./program
+	time ./program $(test_size)
 
 cache: program
 	rm c*grind* -f
-	valgrind --tool=cachegrind ./program
+	valgrind --tool=cachegrind ./program $(test_size)
 
 call: program
 	rm c*grind* -f
-	valgrind --tool=callgrind ./program
+	valgrind --tool=callgrind ./program $(test_size)
 
 inspect: 
 	kcachegrind c*grind\.out\.*
