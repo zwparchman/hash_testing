@@ -49,6 +49,7 @@ void count_free(void *ptr){
 #include "uthash.h"
 #include "sglib.h"
 #include "khash.h"
+#include "hop_hash.h"
 
 #if 0
 #undef uthash_malloc
@@ -167,18 +168,18 @@ struct Time_Hash{
         Hasher h;
 
         insert.start();
-        ret.success |= h.insert(keys, values);
+        ret.success &= h.insert(keys, values);
         insert.stop();
         ret.insert_time = insert.getTime();
 
 
         sequential_access.start();
-        ret.success |= h.sequential(keys, values);
+        ret.success &= h.sequential(keys, values);
         sequential_access.stop();
         ret.sequential_access = sequential_access.getTime();
 
         random_access.start();
-        ret.success |= h.random(keys);
+        ret.success &= h.random(keys);
         random_access.stop();
         ret.random_access = random_access.getTime();
 
@@ -512,6 +513,64 @@ struct KH {
     }
 };
 
+struct ZH {
+
+    static uint64_t hash_fun(KeyType *k){
+        return *k;
+    }
+
+    static int equal_fun(KeyType *a, KeyType *b){
+        return *a == *b;
+    }
+
+    hash_data_t *hash;
+
+    ZH(){
+        hash = hop_hash_init( 127, hash_fun, equal_fun);
+    }
+
+    bool insert(std::vector<KeyType> &keys, std::vector<ValueType> &values){
+        for( size_t i=0; i<keys.size(); i++){
+            ValueType * loc = add_location(hash, &keys[i]);
+            *loc = values[i];
+            loc = retrieve_value(hash, &keys[i]);
+            assert(*loc == values[i]);
+        }
+        return true;
+    }
+
+    ValueType * get( KeyType &t){
+        return retrieve_value(hash, &t);
+    }
+
+    bool sequential(std::vector<KeyType> &keys, std::vector<ValueType> &values){
+        size_t found=0;
+        for( size_t i=0; i<keys.size(); i++){
+            ValueType * where = get(keys[i]);
+            if( where && (*where == values[i]) ){
+                found++;
+            }
+        }
+        return found == keys.size();
+    }
+
+
+    bool random(std::vector<KeyType> &keys){
+        size_t found=0;
+        for( size_t i=0; i<keys.size(); i++){
+            ValueType * where = get(keys[i]);
+            if( where ){
+                found++;
+            }
+        }
+        return found == keys.size();
+    }
+
+    ~ZH(){
+        hhash_destroy(hash);
+    }
+};
+
 
 
 int main(int argc, char * argv[]){
@@ -535,9 +594,10 @@ int main(int argc, char * argv[]){
 
     Times std_time = tester.run<STD>();
     Times ut_time = tester.run<UT>();
-    Times sg_time = tester.run<SG>();
+    //Times sg_time = tester.run<SG>();
     Times glib_time = tester.run<GL>();
     Times khash_time = tester.run<KH>();
+    Times hhash_time = tester.run<ZH>();
 
     auto test_out = [count](std::ostream &os, string name, Times tme, int buffer=1){
         os<<setw(15*buffer)<<name<<","<<
@@ -555,9 +615,10 @@ int main(int argc, char * argv[]){
 #define output(os,buff) \
     test_out(os,"unordered_map", std_time, buff);\
     test_out(os,"ut_hash", ut_time, buff);\
-    test_out(os,"sglib", sg_time, buff);\
+    /*test_out(os,"sglib", sg_time, buff);*/\
     test_out(os,"glib", glib_time, buff);\
-    test_out(os,"khash", khash_time, buff);
+    test_out(os,"khash", khash_time, buff);\
+    test_out(os,"hhash", hhash_time, buff);
 
     output(cout, 1);
     if( fname != ""){

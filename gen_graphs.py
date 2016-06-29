@@ -47,9 +47,9 @@ set xtics axis nomirror {x_tick_interval}
 
 plot '/tmp/data' every 5    using {x_col}:{y_col} title 'unordered map' , \\
      '/tmp/data' every 5::1 using {x_col}:{y_col} title 'ut hash', \\
-     '/tmp/data' every 5::2 using {x_col}:{y_col} title 'sglib', \\
-     '/tmp/data' every 5::3 using {x_col}:{y_col} title 'glib', \\
-     '/tmp/data' every 5::4 using {x_col}:{y_col} title 'khash'
+     '/tmp/data' every 5::2 using {x_col}:{y_col} title 'glib', \\
+     '/tmp/data' every 5::3 using {x_col}:{y_col} title 'khash', \\
+     '/tmp/data' every 5::4 using {x_col}:{y_col} title 'hhash'
 quit
 """.strip()
 
