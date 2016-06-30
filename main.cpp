@@ -112,6 +112,8 @@ struct Times{
     double insert_time;
     double random_access;
     double sequential_access;
+    double partial_deletion;
+    double access_after_deletion;
     size_t memory_in_use;
     size_t malloc_memory;
     bool success;
@@ -158,6 +160,7 @@ struct Time_Hash{
     template <typename Hasher>
     Times run(){
         Timer insert, sequential_access, random_access;
+        Timer partial_deletion, access_after_deletion;
 
         Times ret;
         ret.success=true;
@@ -181,6 +184,16 @@ struct Time_Hash{
         ret.success |= h.random(keys);
         random_access.stop();
         ret.random_access = random_access.getTime();
+
+        partial_deletion.start();
+        ret.success |= h.partial_deletion(keys,keys.size()/2);
+        partial_deletion.stop();
+        ret.partial_deletion=partial_deletion.getTime();
+
+        access_after_deletion.start();
+        ret.success |= h.access_after_deletion(keys, values,keys.size()/2);
+        access_after_deletion.stop();
+        ret.access_after_deletion = access_after_deletion.getTime();
 
         ret.malloc_memory = program_memory() - begin_malloc_usage;
         ret.memory_in_use = ret.malloc_memory - (count_malloc_size - begin_usage);
@@ -221,6 +234,33 @@ struct STD{
             }
         }
         return found == keys.size();
+    }
+
+    bool partial_deletion(std::vector<KeyType> &keys, size_t count){
+        for( size_t i=0; i<count; i++){
+            umap.erase( umap.find(keys[i]));
+        }
+
+        return (umap.size() == (keys.size() - count));
+    }
+
+    bool access_after_deletion(std::vector<KeyType> &keys, std::vector<ValueType> &values, size_t count){
+        /* expect not to find these keys */
+        bool fail = false;
+        for( size_t i=0; i<count; i++){
+            if( umap.end() != umap.find(keys[i])){
+                fail=true;
+            }
+        }
+
+        /* expect to find these keys */
+        for( size_t i=count; i<keys.size(); i++){
+            auto where = umap.find(keys[i]);
+            if( where != umap.end() || where->second != values[i] ){
+                fail=true;
+            }
+        }
+        return ! fail;
     }
 };
 
@@ -283,6 +323,47 @@ struct UT{
         return found == keys.size();
     }
 
+    bool partial_deletion(std::vector<KeyType> &keys, size_t count){
+        bool fail=false;
+        for( size_t i=0; i < count; i++){
+            UT_Struct elem, *where;
+            elem.key = keys[i];
+            HASH_FIND_INT( head, &elem.key, where);
+            if( where == nullptr ){
+                fail=true;
+                continue;
+            }
+            HASH_DEL( head, where);
+            count_free((void*)where);
+        }
+
+        return fail;
+    }
+
+    bool access_after_deletion(std::vector<KeyType> &keys, std::vector<ValueType> &values, size_t count){
+        /* expect not to find these keys */
+        bool fail = false;
+        for( size_t i=0; i<count; i++){
+            UT_Struct elm, *where;
+            elm.key = keys[i];
+            HASH_FIND_INT(head, &elm.key, where);
+            if(where){
+                fail=true;
+            }
+        }
+
+        /* expect to find these keys */
+        for( size_t i=count; i<keys.size(); i++){
+            UT_Struct elem, *where;
+            elem.key = keys[i];
+            HASH_FIND_INT(head, &elem.key, where);
+            if( where || where->value != values[i] ){
+                fail=true;
+            }
+        }
+        return ! fail;
+    }
+
     ~UT(){
         UT_Struct * where=NULL;
         UT_Struct * tmp=NULL;
@@ -341,6 +422,39 @@ struct GL{
         return found == keys.size();
     }
 
+    bool partial_deletion(std::vector<KeyType> &keys, size_t count){
+        bool fail=false;
+        for( size_t i=0; i < count; i++){
+            ValueType *where = (ValueType*)g_hash_table_lookup(table, (void*)&keys[i]);
+            if( where == nullptr ){
+                fail=true;
+                continue;
+            }
+            g_hash_table_remove(table, (void*)&keys[i]);
+        }
+
+        return fail;
+    }
+
+    bool access_after_deletion(std::vector<KeyType> &keys, std::vector<ValueType> &values, size_t count){
+        /* expect not to find these keys */
+        bool fail = false;
+        for( size_t i=0; i<count; i++){
+            ValueType *where = (ValueType*)g_hash_table_lookup(table, (void*)&keys[i]);
+            if(where){
+                fail=true;
+            }
+        }
+
+        /* expect to find these keys */
+        for( size_t i=count; i<keys.size(); i++){
+            ValueType *where = (ValueType*)g_hash_table_lookup(table, (void*)&keys[i]);
+            if( where || *where != values[i] ){
+                fail=true;
+            }
+        }
+        return ! fail;
+    }
 
     bool random(std::vector<KeyType> &keys){
         size_t found=0;
@@ -354,6 +468,7 @@ struct GL{
     }
 
     ~GL(){
+        g_hash_table_destroy(table);
     }
 };
 
@@ -382,6 +497,7 @@ SGLIB_DEFINE_HASHED_CONTAINER_PROTOTYPES(slist, sg_hash_size, slist_hash_functio
 SGLIB_DEFINE_HASHED_CONTAINER_FUNCTIONS(slist, sg_hash_size, slist_hash_function);
 #pragma GCC diagnostic pop
 
+/* not currently supported */
 struct SG{
     slist **head;
 
@@ -494,6 +610,44 @@ struct KH {
         return found == keys.size();
     }
 
+    bool partial_deletion(std::vector<KeyType> &keys, size_t count){
+        bool fail=false;
+        for( size_t i=0; i < count; i++){
+            khint_t k;
+            k = kh_get(m32, hash, keys[i]);
+            if( k == kh_end(hash) ){
+                fail=true;
+                continue;
+            }
+            kh_del(m32, hash, k);
+        }
+        return fail;
+    }
+
+    bool access_after_deletion(std::vector<KeyType> &keys, std::vector<ValueType> &values, size_t count){
+        /* expect not to find these keys */
+        bool fail = false;
+        for( size_t i=0; i<count; i++){
+            khint_t k;
+            k = kh_get(m32, hash, keys[i]);
+            if( k != kh_end(hash)){
+                fail=true;
+            }
+        }
+
+        /* expect to find these keys */
+        for( size_t i=count; i<keys.size(); i++){
+            khint_t k;
+            k = kh_get(m32, hash, keys[i]);
+            if( k == kh_end(hash) || kh_value(hash,k) != values[i]){
+                fail=true;
+            }
+        }
+        return ! fail;
+    }
+
+
+
 
     bool random(std::vector<KeyType> &keys){
         size_t found=0;
@@ -535,7 +689,7 @@ int main(int argc, char * argv[]){
 
     Times std_time = tester.run<STD>();
     Times ut_time = tester.run<UT>();
-    Times sg_time = tester.run<SG>();
+    //Times sg_time = tester.run<SG>();
     Times glib_time = tester.run<GL>();
     Times khash_time = tester.run<KH>();
 
@@ -547,7 +701,9 @@ int main(int argc, char * argv[]){
             //setw(12*buffer)<<tme.random_access<<","<<
             setw(12*buffer)<<tme.memory_in_use<<","<<
             setw(12*buffer)<<tme.malloc_memory<<","<<
-            setw(10*buffer)<<count<<endl;
+            setw(10*buffer)<<count<<","<<
+            setw(12*buffer)<<tme.access_after_deletion<<","<<
+            setw(12*buffer)<<tme.partial_deletion<<endl;
     };
 
     std::ofstream file(fname);
@@ -555,7 +711,7 @@ int main(int argc, char * argv[]){
 #define output(os,buff) \
     test_out(os,"unordered_map", std_time, buff);\
     test_out(os,"ut_hash", ut_time, buff);\
-    test_out(os,"sglib", sg_time, buff);\
+    /*test_out(os,"sglib", sg_time, buff);*/ \
     test_out(os,"glib", glib_time, buff);\
     test_out(os,"khash", khash_time, buff);
 
