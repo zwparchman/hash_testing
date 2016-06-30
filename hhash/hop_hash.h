@@ -257,6 +257,26 @@ h_Value_Type * add_location(hash_data_t *dat, h_Key_Type *key){
     }
 }
 
+void mark_unused(hash_data_t *dat, size_t slot){
+    dat->hashes[slot] = 0;
+}
+
+int hop_hash_remove(hash_data_t *dat, h_Key_Type *key){
+    uint64_t hash = hash_fun(key) & (~bit64);
+    size_t where = mod( hash, dat->slot_count);
+
+    for( size_t offset = 0; offset < (uint64_t)dat->neighbood_size; offset++){
+        size_t modded = mod(where+offset, dat->slot_count);
+        //ignore the case where hashes match for now
+        if( ((hash ^ dat->hashes[modded] ) << 1) == 0 &&
+            equal_fun(&dat->keys[modded], key)){
+            mark_unused(dat, modded);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 h_Value_Type *retrieve_value(hash_data_t *dat, h_Key_Type *key){
     uint64_t hash = hash_fun(key) & (~bit64);
     size_t where = mod( hash, dat->slot_count);
